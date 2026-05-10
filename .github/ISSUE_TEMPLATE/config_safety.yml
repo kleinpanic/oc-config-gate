@@ -1,0 +1,34 @@
+name: Config safety issue
+description: Report a config gate, approval, guard, or restart safety issue
+title: "safety: "
+labels: ["safety"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - approval card
+        - direct edit guard
+        - pending state
+        - stale-base check
+        - config validation
+        - blessing
+        - safe restart
+        - documentation
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What safety behavior is wrong or unclear?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+

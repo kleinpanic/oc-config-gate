@@ -15,11 +15,14 @@
   },
   "files": [
     "dist",
+    "docs",
     "index.js",
     "openclaw.plugin.json",
     "skills",
     "README.md",
     "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "openclaw": {

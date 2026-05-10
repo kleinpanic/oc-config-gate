@@ -1,0 +1,29 @@
+name: Bug report
+description: Report an oc-config-gate bug
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What failed?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Include relevant command output, redacted logs, or screenshots.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation run
+      description: Which checks did you run?
+      value: |
+        - openclaw config validate --json:
+        - openclaw plugins inspect oc-config-gate --runtime --json:
+        - npm test:
+
