@@ -1,0 +1,11 @@
+node_modules/
+coverage/
+.nyc_output/
+.DS_Store
+*.log
+*.tmp
+
+# Runtime state belongs under ~/.openclaw, never in the plugin repo.
+pending-config.json
+*.bak
+

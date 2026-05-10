@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>oc-config-gate</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0f14;
+        --panel: #121821;
+        --line: #263244;
+        --text: #e6edf3;
+        --muted: #9fb0c3;
+        --blue: #58a6ff;
+        --green: #3fb950;
+        --amber: #d29922;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.55;
+      }
+      main { max-width: 1080px; margin: 0 auto; padding: 56px 22px 72px; }
+      header { border-bottom: 1px solid var(--line); padding-bottom: 34px; }
+      h1 { font-size: clamp(2.4rem, 6vw, 5.5rem); line-height: 0.95; margin: 0 0 18px; letter-spacing: 0; }
+      h2 { margin-top: 42px; font-size: 1.5rem; }
+      p { color: var(--muted); max-width: 760px; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      pre {
+        background: #090c10;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 18px;
+        overflow: auto;
+      }
+      .badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0; }
+      .badge {
+        border: 1px solid var(--line);
+        color: var(--text);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.9rem;
+      }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 18px; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+      .card strong { color: var(--text); }
+      .green { color: var(--green); }
+      .blue { color: var(--blue); }
+      .amber { color: var(--amber); }
+      a { color: var(--blue); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>oc-config-gate</h1>
+        <p>Approved OpenClaw config control for agents: stage patches, validate them, post native Discord approvals, write only after approval, bless, audit, and optionally request an official safe gateway restart.</p>
+        <div class="badges">
+          <span class="badge">OpenClaw >= 2026.5.7</span>
+          <span class="badge">TypeScript</span>
+          <span class="badge">Native Discord buttons</span>
+          <span class="badge">MIT</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>Control Plane</h2>
+        <div class="grid">
+          <div class="card"><strong>Stage</strong><br><span class="blue">oc_config_stage</span> accepts RFC 7396 merge patches.</div>
+          <div class="card"><strong>Approve</strong><br>Discord buttons are handled in-process by OpenClaw.</div>
+          <div class="card"><strong>Apply</strong><br>Base hash, schema, safety, write, bless, audit.</div>
+          <div class="card"><strong>Guard</strong><br>Non-meta direct edits and raw restarts are blocked.</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Approved Apply Behavior</h2>
+        <pre><code>validate -> safety-check -> write -> bless -> audit
+
+# optional, only when restart: true
+openclaw gateway restart --safe --wait 5m --json</code></pre>
+      </section>
+
+      <section>
+        <h2>Status</h2>
+        <p><span class="green">13 tests passing</span>. Published as the replacement path for the older split `oc-restart` and shell guardian control plane.</p>
+        <p><a href="https://github.com/kleinpanic/oc-config-gate">GitHub repository</a></p>
+      </section>
+    </main>
+  </body>
+</html>
+

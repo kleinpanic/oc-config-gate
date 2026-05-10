@@ -1,0 +1,46 @@
+{
+  "name": "oc-config-gate",
+  "version": "1.0.0",
+  "description": "Gated OpenClaw config patching with Discord approval, deep validation, and safe restart",
+  "type": "module",
+  "main": "dist/plugin.js",
+  "license": "MIT",
+  "homepage": "https://kleinpanic.github.io/oc-config-gate/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kleinpanic/oc-config-gate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kleinpanic/oc-config-gate/issues"
+  },
+  "files": [
+    "dist",
+    "index.js",
+    "openclaw.plugin.json",
+    "skills",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "openclaw": {
+    "extensions": ["dist/plugin.js"]
+  },
+  "exports": {
+    ".": "./dist/plugin.js",
+    "./plugin": "./dist/plugin.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "dev": "tsc --watch"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.5.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "openclaw": "^2026.5.7",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "oc-config-gate",
+  "name": "Config Gate",
+  "description": "Gated OpenClaw config patching: validates JSON Merge Patches, blocks unsafe direct edits/restarts, and applies only after native approval.",
+  "version": "1.0.0",
+  "activation": {
+    "onCapabilities": ["tool", "hook"]
+  },
+  "contracts": {
+    "tools": ["oc_config_stage", "oc_config_apply"]
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "approvalChannelId": {
+        "type": "string",
+        "description": "Discord channel ID to post approval cards. Defaults to OC_CONFIG_GATE_CHANNEL env var or meta-openclaw channel."
+      },
+      "pendingTtlMs": {
+        "type": "number",
+        "default": 1800000,
+        "description": "How long a pending approval is valid before it expires (default: 30 min)"
+      },
+      "restartDelayMs": {
+        "type": "number",
+        "default": 0,
+        "description": "Deprecated. The plugin no longer imports gateway restart internals directly."
+      },
+      "allowGatewayRestart": {
+        "type": "boolean",
+        "default": true,
+        "description": "Allow approved staged requests to call OpenClaw's official safe gateway restart command after write/bless."
+      },
+      "authorizedDiscordUserIds": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": ["1014431070059503699"],
+        "description": "Discord user IDs allowed to approve or deny staged config changes."
+      },
+      "allowedAgentIds": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": ["meta"],
+        "description": "OpenClaw agent IDs allowed to make direct config/restart changes. Other agents must use oc_config_stage."
+      }
+    },
+    "additionalProperties": false
+  }
+}
