@@ -46,9 +46,10 @@ It is the canonical replacement for the older split control plane where `oc-rest
 | Required checks | CI matrix, security scan, dependency review on PRs. |
 | Dependency automation | Dependabot for npm and GitHub Actions. |
 | Release automation | Tag-based GitHub Release with tarball artifact. |
+| Owner review | `CODEOWNERS` covers source, tests, docs, workflows, and package metadata. |
 | Issue workflow | Bug and config-safety templates. |
 | PR workflow | Validation and safety checklist template. |
-| Docs surfaces | README, GitHub Pages, docs directory, and wiki seed. |
+| Docs surfaces | README, GitHub Pages, docs directory, wiki mirror, and GitHub Wiki enabled. |
 
 ## Architecture
 
@@ -75,7 +76,7 @@ sequenceDiagram
     Apply-->>Discord: Update card with result
 ```
 
-For a full write-up, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For a full write-up, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Operator runbooks live in [docs/wiki](docs/wiki/Home.md); GitHub Wiki is enabled for the repo, but the main-repo mirror is canonical until GitHub accepts pushes to the separate wiki remote.
 
 ## What It Does
 

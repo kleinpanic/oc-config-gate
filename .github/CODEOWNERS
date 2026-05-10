@@ -1,0 +1,10 @@
+# Repository owner review is required for config-control changes.
+* @kleinpanic
+
+# Keep workflow, package, runtime, and documentation changes owner-reviewed.
+/.github/ @kleinpanic
+/src/ @kleinpanic
+/test/ @kleinpanic
+/docs/ @kleinpanic
+/package.json @kleinpanic
+/package-lock.json @kleinpanic
