@@ -55,6 +55,27 @@ export interface PluginInteractiveDiscordHandlerContext {
         }) => Promise<void>;
     };
 }
+export interface PluginHookToolContext {
+    agentId?: string;
+    sessionKey?: string;
+    sessionId?: string;
+    runId?: string;
+    toolName: string;
+    toolCallId?: string;
+}
+export interface PluginHookBeforeToolCallEvent {
+    toolName: string;
+    params: Record<string, unknown>;
+    runId?: string;
+    toolCallId?: string;
+    derivedPaths?: readonly string[];
+}
+export interface PluginHookBeforeToolCallResult {
+    params?: Record<string, unknown>;
+    block?: boolean;
+    blockReason?: string;
+}
+export type PluginHookBeforeToolCallHandler = (event: PluginHookBeforeToolCallEvent, ctx: PluginHookToolContext) => Promise<PluginHookBeforeToolCallResult | void> | PluginHookBeforeToolCallResult | void;
 export interface ChannelOutboundAdapter {
     sendPayload?: (ctx: {
         cfg: unknown;
@@ -90,7 +111,10 @@ export interface OpenClawPluginApi {
     config: unknown;
     runtime?: PluginRuntime;
     registerTool: (tool: PluginTool) => void;
-    registerHook?: (events: string | string[], handler: (event: unknown, ctx: Record<string, unknown>) => Promise<unknown> | unknown, opts?: Record<string, unknown>) => void;
+    on: (hookName: "before_tool_call", handler: PluginHookBeforeToolCallHandler, opts?: {
+        priority?: number;
+        timeoutMs?: number;
+    }) => void;
     registerInteractiveHandler: (registration: {
         channel: "discord";
         namespace: string;

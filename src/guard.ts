@@ -1,4 +1,8 @@
-import type { OpenClawPluginApi } from "./types.js";
+import type {
+  OpenClawPluginApi,
+  PluginHookBeforeToolCallResult,
+  PluginHookToolContext,
+} from "./types.js";
 
 const CONFIG_PATH_RE = /(?:^|\s|["'`])(?:~\/\.openclaw\/openclaw\.json|\/home\/broklein\/\.openclaw\/openclaw\.json|\.openclaw\/openclaw\.json|openclaw\.json)(?:\s|["'`]|$)/i;
 const CONFIG_WRITE_RE = /\b(?:cat|cp|mv|tee|sed|perl|python3?|node|jq|printf|ed|vi|vim|nano|truncate|install)\b[\s\S]*(?:>|--in-place|-i\b|rename|writeFile|writeFileSync|copyFile|copyFileSync|move)/i;
@@ -24,15 +28,12 @@ function stringifyParams(value: unknown): string {
   }
 }
 
-function normalizeAgentId(ctx: Record<string, unknown>): string {
-  const direct = ctx["agentId"];
-  if (typeof direct === "string" && direct.length > 0) return direct;
-  const sessionKey = ctx["sessionKey"];
-  if (typeof sessionKey === "string") {
-    const match = sessionKey.match(/^agent:([^:]+)/);
-    if (match?.[1]) return match[1];
-  }
-  return "";
+function normalizeAgentId(ctx: PluginHookToolContext): string {
+  if (ctx.agentId) return ctx.agentId;
+  // The host omits agentId on some paths but keeps sessionKey (buildToolContext,
+  // agent-tools.before-tool-call.ts:1500-1504 — every field is a conditional spread).
+  const match = ctx.sessionKey?.match(/^agent:([^:]+)/);
+  return match?.[1] ?? "";
 }
 
 export function shouldBlockToolCall(params: {
@@ -79,36 +80,34 @@ export function shouldBlockToolCall(params: {
 }
 
 export function registerConfigGuardHook(api: OpenClawPluginApi, allowedAgentIds?: string[]): void {
-  if (typeof api.registerHook !== "function") {
-    api.logger.warn("[oc-config-gate] registerHook unavailable; config guard hook not installed");
+  if (typeof api.on !== "function") {
+    api.logger.warn("[oc-config-gate] api.on unavailable; config guard hook NOT installed");
     return;
   }
 
-  api.registerHook(
+  api.on(
     "before_tool_call",
-    (event, ctx) => {
-      const eventRecord = event && typeof event === "object" ? event as Record<string, unknown> : {};
-      const contextRecord = ctx ?? {};
-      const toolName =
-        typeof eventRecord["toolName"] === "string"
-          ? eventRecord["toolName"]
-          : typeof contextRecord["toolName"] === "string"
-            ? contextRecord["toolName"] as string
-            : "";
+    (event, ctx): PluginHookBeforeToolCallResult | undefined => {
+      const agentId = normalizeAgentId(ctx);
       const decision = shouldBlockToolCall({
-        agentId: normalizeAgentId(contextRecord),
-        toolName,
-        payload: eventRecord["params"] ?? eventRecord,
+        agentId,
+        toolName: event.toolName,
+        payload: event.params,
         allowedAgentIds,
       });
       if (!decision.block) return undefined;
       api.logger.warn("[oc-config-gate] blocked unsafe config/restart tool call", {
-        agentId: normalizeAgentId(contextRecord),
-        toolName,
+        agentId,
+        toolName: event.toolName,
         reason: decision.reason,
       });
       return { block: true, blockReason: decision.reason };
     },
-    { name: "oc-config-gate-tool-guard", priority: 1000 },
+    // Typed-bus dispatch is priority-DESCENDING (hooks.ts:287), not registration
+    // order. This is a deny gate: it must evaluate the params the model actually
+    // proposed, before any lower-priority hook can rewrite them via the `params`
+    // return. 1000 puts it above every other subscriber on this install
+    // (gsd-oc:enforce-gate 100, gsd-oc:rigor-advisory 40).
+    { priority: 1000 },
   );
 }

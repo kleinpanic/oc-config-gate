@@ -53,6 +53,49 @@ export interface PluginInteractiveDiscordHandlerContext {
   };
 }
 
+// ─── Typed hook bus (api.on) ─────────────────────────────────────────────────
+// Mirrors openclaw's PluginHookToolContext / PluginHookBeforeToolCallEvent /
+// PluginHookBeforeToolCallResult (plugin-sdk hook-types.d.ts:220,230,244 in the
+// 2026.5.7 peer floor; unchanged at clone 0790d9f / 2026.7.1).
+//
+// before_tool_call is dispatched exclusively from registry.typedHooks
+// (hooks.ts:285), whose sole write path is api.on -> registerTypedHook
+// (registry.ts:3284 -> :2616). api.registerHook reaches the internal hook bus,
+// whose closed event namespace does not contain before_tool_call and never
+// emits it — a registration there is inert by construction. registerHook is
+// deliberately absent from this interface so that bus cannot be reached again.
+
+export interface PluginHookToolContext {
+  agentId?: string;
+  sessionKey?: string;
+  sessionId?: string;
+  runId?: string;
+  toolName: string;
+  toolCallId?: string;
+}
+
+export interface PluginHookBeforeToolCallEvent {
+  toolName: string;
+  params: Record<string, unknown>;
+  runId?: string;
+  toolCallId?: string;
+  derivedPaths?: readonly string[];
+}
+
+export interface PluginHookBeforeToolCallResult {
+  params?: Record<string, unknown>;
+  block?: boolean;
+  blockReason?: string;
+}
+
+export type PluginHookBeforeToolCallHandler = (
+  event: PluginHookBeforeToolCallEvent,
+  ctx: PluginHookToolContext,
+) =>
+  | Promise<PluginHookBeforeToolCallResult | void>
+  | PluginHookBeforeToolCallResult
+  | void;
+
 export interface ChannelOutboundAdapter {
   sendPayload?: (ctx: {
     cfg: unknown;
@@ -87,10 +130,10 @@ export interface OpenClawPluginApi {
   config: unknown;
   runtime?: PluginRuntime;
   registerTool: (tool: PluginTool) => void;
-  registerHook?: (
-    events: string | string[],
-    handler: (event: unknown, ctx: Record<string, unknown>) => Promise<unknown> | unknown,
-    opts?: Record<string, unknown>,
+  on: (
+    hookName: "before_tool_call",
+    handler: PluginHookBeforeToolCallHandler,
+    opts?: { priority?: number; timeoutMs?: number },
   ) => void;
   registerInteractiveHandler: (registration: {
     channel: "discord";
