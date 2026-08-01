@@ -1,7 +1,13 @@
 import type { OpenClawPluginApi } from "./types.js";
+/**
+ * Which branch denied. Interpolated into the journal line so a block is
+ * self-identifying — see registerConfigGuardHook. Never carries params.
+ */
+export type GuardBlockCategory = "config-rpc" | "protected-path" | "gateway-restart-action" | "config-write-command" | "gateway-restart-command";
 export interface GuardDecision {
     block: boolean;
     reason?: string;
+    category?: GuardBlockCategory;
 }
 export declare function shouldBlockToolCall(params: {
     agentId?: string;

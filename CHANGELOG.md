@@ -12,6 +12,22 @@
   outcome as a raw `systemctl` restart without matching any command-string pattern.
 - Reads of the config remain allowed; `meta` (and any configured `allowedAgentIds`)
   keeps its exemption across every newly covered tool shape.
+- Fixes an over-block: the three command-grammar regexes ran against the stringified
+  params of *every* tool, so a read-only call was denied whenever its free text
+  happened to contain a restart- or config-shaped phrase. A `tool_search` for
+  "openclaw gateway restart action" was denied live. The regex branches now evaluate
+  only on non-read-only calls; structured detection (path args, patch envelopes, the
+  `gateway` restart action) is unchanged and still runs for every tool.
+- Widens read-only classification to match the host: adds the missing `search` tool
+  and honours the host's action-discriminated read surfaces (`message`, `browser`,
+  `process`, `nodes`, `cron`, `canvas`, `subagents`, `skill_workshop`, `*_actions`).
+  Unknown and absent actions stay fail-closed, and `exec`, `bash`, `write`, `edit`,
+  `apply_patch`, and `gateway` can never be classified read-only.
+- Makes each block line self-identifying in the journal. journald renders only the
+  message string, so the `agentId`/`toolName`/`reason` metadata object produced no
+  journal fields and every block logged byte-identically. Tool name, agent id, and a
+  reason category are now interpolated into the message itself, sanitised so an
+  injected newline cannot forge a second record. Params are never logged.
 
 ## 1.0.0 - 2026-05-09
 

@@ -43,7 +43,8 @@ const PATH_ARG_KEYS = new Set(
 
 // Tools that cannot write, so a protected path in their params is a read and
 // must stay allowed. Sourced from the host's replay-safe set (clone 0790d9f,
-// src/agents/tool-mutation.ts:90-110) plus the session read tools.
+// src/agents/tool-mutation.ts:93-114 REPLAY_SAFE_TOOL_NAMES) plus the session
+// read tools. `search` was missing against that list and is restored here.
 const READ_ONLY_TOOL_NAMES = new Set([
   "read",
   "ls",
@@ -58,6 +59,7 @@ const READ_ONLY_TOOL_NAMES = new Set([
   "get_goal",
   "memory_get",
   "memory_search",
+  "search",
   "sessions_history",
   "sessions_list",
   "tool_describe",
@@ -68,6 +70,75 @@ const READ_ONLY_TOOL_NAMES = new Set([
   "web_fetch",
   "web_search",
   "x_search",
+]);
+
+// Tools whose read/write nature is decided by an `action` discriminator rather
+// than by name. Mirrors the host's own tables (clone 0790d9f,
+// src/agents/tool-mutation.ts): MESSAGE_READ_ONLY_ACTIONS :76-91,
+// BROWSER_READ_ONLY_ACTIONS :116, PROCESS_REPLAY_SAFE_ACTIONS :74,
+// NODES_REPLAY_SAFE_ACTIONS :118, READ_ONLY_ACTIONS :46-62, and the
+// `subagents` / `skill_workshop` / `transcripts` arms of isReplaySafeToolCall
+// :415-444. Fail-closed exactly as the host does: an absent or unknown action
+// is NOT read-only.
+const GENERIC_READ_ONLY_ACTIONS = new Set([
+  "get",
+  "list",
+  "read",
+  "status",
+  "show",
+  "fetch",
+  "search",
+  "query",
+  "view",
+  "poll",
+  "log",
+  "inspect",
+  "check",
+  "probe",
+  "runs",
+]);
+
+const ACTION_READ_ONLY_TOOLS = new Map<string, ReadonlySet<string>>([
+  [
+    "message",
+    new Set([
+      "reactions",
+      "read",
+      "list_pins",
+      "permissions",
+      "thread_list",
+      "search",
+      "sticker_search",
+      "member_info",
+      "role_info",
+      "emoji_list",
+      "channel_info",
+      "channel_list",
+      "voice_status",
+      "event_list",
+    ]),
+  ],
+  ["browser", new Set(["console", "profiles", "snapshot", "status", "tabs"])],
+  ["process", new Set(["list", "log"])],
+  ["nodes", new Set(["status", "describe", "pending"])],
+  ["subagents", new Set(["list"])],
+  ["skill_workshop", new Set(["list", "inspect"])],
+  ["cron", GENERIC_READ_ONLY_ACTIONS],
+  ["canvas", GENERIC_READ_ONLY_ACTIONS],
+]);
+
+// Never classified read-only, whatever the name or action says. `exec`/`bash`
+// are the entire reason the command-grammar regexes exist; `write`/`edit`/
+// `apply_patch` are the structured writers; `gateway` reaches restart and the
+// config RPCs through its own action discriminator and is deliberately kept
+// outside ACTION_READ_ONLY_TOOLS so no action value can ever exempt it.
+const NEVER_READ_ONLY_TOOL_NAMES = new Set([
+  "exec",
+  "bash",
+  "apply_patch",
+  "write",
+  "edit",
+  "gateway",
 ]);
 
 // Unknown/MCP tools are treated as writers unless their name reads as an
@@ -85,10 +156,47 @@ const GATEWAY_TOOL_RESTART_ACTIONS = new Set(["restart"]);
 
 const MAX_PARAM_SCAN_DEPTH = 8;
 
-function isReadOnlyTool(toolName: string): boolean {
+/**
+ * Name-only read-only test. Gates the PATH branch, unchanged from f61edc6:
+ * a structured path arg is an exact target, and widening that branch on an
+ * `action` value would exempt tools (e.g. `browser` snapshot-to-file) whose
+ * replay-safety says nothing about where they write.
+ */
+function isReadOnlyToolName(toolName: string): boolean {
   const normalized = toolName.trim().toLowerCase();
   if (normalized.length === 0) return false;
+  if (NEVER_READ_ONLY_TOOL_NAMES.has(normalized)) return false;
   return READ_ONLY_TOOL_NAMES.has(normalized) || READ_ONLY_NAME_RE.test(normalized);
+}
+
+/**
+ * Call-level read-only test. Gates the three command-grammar REGEX branches.
+ *
+ * Those regexes were written for `exec`/`bash`, where params are a shell
+ * command, but they were applied to `toolName + JSON.stringify(params)` for
+ * every tool. A read-only tool's params are free text the user or model
+ * composes — a search query, a grep pattern, a web query, a message body — so
+ * a phrase match inside them is evidence of nothing. Denying on it blocks pure
+ * reads (proven live: a `tool_search` for "openclaw gateway restart action"
+ * was denied at 2026-08-01T00:29:43, `.planning/.../64-CONFIG-GATE-LIVE-PROOF.md`
+ * §5, commit 31ed3e0) and corrupts the journal evidence it produces.
+ *
+ * Superset of isReadOnlyToolName, plus the host's action-discriminated
+ * read surfaces.
+ */
+function isReadOnlyCall(toolName: string, payload: unknown): boolean {
+  const normalized = toolName.trim().toLowerCase();
+  if (normalized.length === 0) return false;
+  if (NEVER_READ_ONLY_TOOL_NAMES.has(normalized)) return false;
+  if (isReadOnlyToolName(normalized)) return true;
+
+  const actionReadOnly =
+    ACTION_READ_ONLY_TOOLS.get(normalized) ??
+    (normalized.endsWith("_actions") ? GENERIC_READ_ONLY_ACTIONS : undefined);
+  if (!actionReadOnly) return false;
+
+  const action = readAction(payload);
+  return action.length > 0 && actionReadOnly.has(action);
 }
 
 /** Collect every string sitting under a known file-target key, at any depth. */
@@ -149,19 +257,33 @@ function collectPatchArgs(value: unknown, depth = 0, out: string[] = []): string
   return out;
 }
 
+/** Host-compatible action normalization (clone 0790d9f, tool-mutation.ts:164-167). */
 function readAction(payload: unknown): string {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return "";
   const action = (payload as Record<string, unknown>)["action"];
-  return typeof action === "string" ? action.trim().toLowerCase() : "";
+  if (typeof action !== "string") return "";
+  return action.trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 const CONFIG_GUIDANCE =
   "For config changes, stage an RFC 7396 patch with oc_config_stage; approving the Discord card automatically validates, writes, blesses, and audits.";
 const RESTART_GUIDANCE =
   "For an operator-approved gateway restart, do not call systemd directly; ask meta to use the official OpenClaw service command: openclaw gateway restart --json.";
 
+/**
+ * Which branch denied. Interpolated into the journal line so a block is
+ * self-identifying — see registerConfigGuardHook. Never carries params.
+ */
+export type GuardBlockCategory =
+  | "config-rpc"
+  | "protected-path"
+  | "gateway-restart-action"
+  | "config-write-command"
+  | "gateway-restart-command";
+
 export interface GuardDecision {
   block: boolean;
   reason?: string;
+  category?: GuardBlockCategory;
 }
 
 function stringifyParams(value: unknown): string {
@@ -208,16 +330,23 @@ export function shouldBlockToolCall(params: {
   const payload = stringifyParams(params.payload);
   const combined = `${toolName}\n${payload}`;
 
-  if (CONFIG_RPC_RE.test(combined)) {
+  // The command-grammar regexes below match phrases anywhere in the stringified
+  // params. On a read-only call those params are free text, so a match proves
+  // nothing and denying on it blocks a pure read. Structured detection (path
+  // args, patch envelopes, the gateway action) is unaffected and still runs.
+  const readOnlyCall = isReadOnlyCall(toolName, params.payload);
+
+  if (!readOnlyCall && CONFIG_RPC_RE.test(combined)) {
     return {
       block: true,
+      category: "config-rpc",
       reason: `Direct OpenClaw config/update/restart RPCs are blocked for non-meta agents. ${CONFIG_GUIDANCE} ${RESTART_GUIDANCE}`,
     };
   }
 
   // Path-based detection. Runs before the command-grammar fallback because a
   // structured envelope carries an exact target and needs no heuristics.
-  if (!isReadOnlyTool(toolName)) {
+  if (!isReadOnlyToolName(toolName)) {
     const candidatePaths = [
       ...(params.derivedPaths ?? []),
       ...collectPathArgs(params.payload),
@@ -226,36 +355,53 @@ export function shouldBlockToolCall(params: {
     if (candidatePaths.some(isProtectedPath)) {
       return {
         block: true,
+        category: "protected-path",
         reason: `Direct edits to ~/.openclaw/openclaw.json are blocked for non-meta agents (tool "${toolName || "unknown"}" targets the protected config path). ${CONFIG_GUIDANCE}`,
       };
     }
   }
 
+  // Ungated by design: `gateway` is in NEVER_READ_ONLY_TOOL_NAMES, so no action
+  // value can route around this.
   if (
     toolName.trim().toLowerCase() === "gateway" &&
     GATEWAY_TOOL_RESTART_ACTIONS.has(readAction(params.payload))
   ) {
     return {
       block: true,
+      category: "gateway-restart-action",
       reason: `Direct gateway restarts are blocked for non-meta agents. ${RESTART_GUIDANCE}`,
     };
   }
 
-  if (CONFIG_PATH_RE.test(combined) && CONFIG_WRITE_RE.test(combined)) {
+  if (!readOnlyCall && CONFIG_PATH_RE.test(combined) && CONFIG_WRITE_RE.test(combined)) {
     return {
       block: true,
+      category: "config-write-command",
       reason: `Direct edits to ~/.openclaw/openclaw.json are blocked for non-meta agents. ${CONFIG_GUIDANCE}`,
     };
   }
 
-  if (GATEWAY_RESTART_RE.test(combined)) {
+  if (!readOnlyCall && GATEWAY_RESTART_RE.test(combined)) {
     return {
       block: true,
+      category: "gateway-restart-command",
       reason: `Direct gateway restarts are blocked for non-meta agents. ${RESTART_GUIDANCE}`,
     };
   }
 
   return { block: false };
+}
+
+/**
+ * Make an untrusted identifier safe to interpolate into a single journal line.
+ * Tool names and agent ids reach us from the model's proposed call, so they are
+ * a log-injection surface: a newline would forge a second journal record.
+ */
+function sanitizeLogLabel(value: unknown): string {
+  if (typeof value !== "string") return "unknown";
+  const cleaned = value.trim().replace(/[^A-Za-z0-9_.:@/-]/g, "?").slice(0, 64);
+  return cleaned.length > 0 ? cleaned : "unknown";
 }
 
 export function registerConfigGuardHook(api: OpenClawPluginApi, allowedAgentIds?: string[]): void {
@@ -276,11 +422,21 @@ export function registerConfigGuardHook(api: OpenClawPluginApi, allowedAgentIds?
         allowedAgentIds,
       });
       if (!decision.block) return undefined;
-      api.logger.warn("[oc-config-gate] blocked unsafe config/restart tool call", {
-        agentId,
-        toolName: event.toolName,
-        reason: decision.reason,
-      });
+      // Attribution goes in the message STRING, not the metadata object.
+      // journald renders only MESSAGE — the structured second argument produces
+      // no journal fields at all, verified against the live 2026-08-01T00:29:43
+      // record. Under the old format every block line was byte-identical and
+      // attribution had to be reconstructed from session trajectories, which is
+      // exactly what "the journal line is authoritative" cannot survive
+      // (`.planning/.../64-CONFIG-GATE-LIVE-PROOF.md` §6, commit 31ed3e0).
+      // Params are deliberately never logged: they can carry secrets.
+      api.logger.warn(
+        `[oc-config-gate] blocked unsafe config/restart tool call ` +
+          `tool=${sanitizeLogLabel(event.toolName)} ` +
+          `agent=${sanitizeLogLabel(agentId)} ` +
+          `reason=${decision.category ?? "unspecified"}`,
+        { agentId, toolName: event.toolName, reason: decision.reason },
+      );
       return { block: true, blockReason: decision.reason };
     },
     // Typed-bus dispatch is priority-DESCENDING (hooks.ts:287), not registration
