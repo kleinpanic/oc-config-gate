@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Closes a detection gap: `apply_patch`, `write`, `edit`, and any other structured
+  file-writing tool could target `~/.openclaw/openclaw.json` unblocked, because the
+  guard required a shell verb plus a redirect/in-place token that no tool envelope
+  contains. Protected files are now matched by PATH — via the host's `derivedPaths`
+  hint, the tool's file-target arg keys, and a local parse of the `apply_patch`
+  envelope — with command-string matching kept as the fallback for `exec`/`bash`.
+- Blocks the `gateway` tool's structured `action: "restart"`, which reached the same
+  outcome as a raw `systemctl` restart without matching any command-string pattern.
+- Reads of the config remain allowed; `meta` (and any configured `allowedAgentIds`)
+  keeps its exemption across every newly covered tool shape.
+
 ## 1.0.0 - 2026-05-09
 
 - Consolidates the prior `oc-restart`, `oc-config-gate`, and shell-only config guardian flows into one OpenClaw plugin surface.

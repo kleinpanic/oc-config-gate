@@ -2,7 +2,7 @@
  * Agent tools: oc_config_stage and oc_config_apply
  */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { resolveConfigPath } from "./config-path.js";
 import { applyMergePatch, summarizePatchPaths } from "./merge.js";
 import { validateMergedConfig } from "./validate.js";
 import { buildApprovalCardComponents, buildApprovalCardText } from "./discord-card.js";
@@ -12,10 +12,6 @@ const DEFAULT_CHANNEL_ID = "1474492327748960378"; // #meta-openclaw
 const DEFAULT_TTL_MS = 30 * 60 * 1000; // 30 min
 function text(t, isError = false) {
     return { content: [{ type: "text", text: t }], isError };
-}
-function resolveConfigPath() {
-    return process.env["OPENCLAW_CONFIG_PATH"]
-        ?? join(process.env["HOME"] ?? process.cwd(), ".openclaw", "openclaw.json");
 }
 function loadRawConfigFile() {
     return JSON.parse(readFileSync(resolveConfigPath(), "utf8"));

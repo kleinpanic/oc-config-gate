@@ -3,8 +3,8 @@
  */
 
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { OpenClawPluginApi, PluginTool, PluginToolResult } from "./types.js";
+import { resolveConfigPath } from "./config-path.js";
 import { applyMergePatch, summarizePatchPaths } from "./merge.js";
 import { validateMergedConfig } from "./validate.js";
 import { buildApprovalCardComponents, buildApprovalCardText } from "./discord-card.js";
@@ -23,11 +23,6 @@ const DEFAULT_TTL_MS = 30 * 60 * 1000; // 30 min
 
 function text(t: string, isError = false): PluginToolResult {
   return { content: [{ type: "text", text: t }], isError };
-}
-
-function resolveConfigPath(): string {
-  return process.env["OPENCLAW_CONFIG_PATH"]
-    ?? join(process.env["HOME"] ?? process.cwd(), ".openclaw", "openclaw.json");
 }
 
 function loadRawConfigFile(): unknown {
