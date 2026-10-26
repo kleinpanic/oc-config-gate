@@ -27,9 +27,22 @@ function formatEt(iso) {
         timeStyle: "short",
     });
 }
+/**
+ * Break up backtick runs that could open or close a Markdown code fence.
+ */
+function breakFences(value) {
+    return value.replace(/`{3,}/g, (run) => run.split("").join("​"));
+}
+/**
+ * Render agent-controlled text (config keys/values, validation messages) on a
+ * single line so it cannot start new Markdown blocks or close a code fence.
+ */
+function inline(value) {
+    return breakFences(value.replace(/\r\n|\r|\n/g, "\\n"));
+}
 function formatList(items, limit) {
     const shown = items.slice(0, limit);
-    const lines = shown.map((item) => `- ${item}`);
+    const lines = shown.map((item) => `- ${inline(item)}`);
     if (items.length > limit) {
         lines.push(`- ... ${items.length - limit} more`);
     }
@@ -39,7 +52,7 @@ function diffPreview(diffLines, limit) {
     if (diffLines.length === 0) {
         return ["# no structural changes detected"];
     }
-    const shown = diffLines.slice(0, limit);
+    const shown = diffLines.slice(0, limit).map(inline);
     if (diffLines.length > limit) {
         shown.push(`... ${diffLines.length - limit} more change(s) not shown`);
     }
@@ -90,7 +103,7 @@ export function buildApprovalCardText(params) {
         `\`${requestId}\`  |  expires \`${formatEt(expiresAt)} ET\``,
         "",
         "**Reason**",
-        `> ${reason}`,
+        ...reason.split(/\r\n|\r|\n/).map((line) => `> ${breakFences(line)}`),
         "",
         "**Validation**",
     ];

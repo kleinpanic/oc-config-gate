@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Security: agent-supplied reasons, config keys/values, and validation messages are now rendered so they cannot open or close Markdown blocks on the Discord approval card and spoof its status or diff.
 - Security: the `before_tool_call` guard now blocks non-meta writes to `openclaw.json` through OpenClaw file tools (`write`, `edit`, `apply_patch`) and through `$HOME/...` or other absolute paths, which previously bypassed it.
 - Security: Discord Approve/Deny now requires the sender to be in `authorizedDiscordUserIds` when that list is set. Previously any sender OpenClaw considered authorized for the channel could approve.
 - Fix approved `restart: true` requests always failing: OpenClaw rejects `--safe` combined with `--wait`, so the plugin now runs `openclaw gateway restart --safe --json`.
