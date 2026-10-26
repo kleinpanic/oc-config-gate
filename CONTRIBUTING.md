@@ -7,10 +7,12 @@
 ```bash
 git clone https://github.com/kleinpanic/oc-config-gate.git
 cd oc-config-gate
-npm install
+npm install --ignore-scripts
 npm run check
 npm test
 ```
+
+`--ignore-scripts` skips the `openclaw` devDependency's host-setup install scripts, which the build and tests do not need and which refuse to run on Node < 24.
 
 ## Repository Structure
 
