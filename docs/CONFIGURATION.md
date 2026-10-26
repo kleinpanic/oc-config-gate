@@ -27,7 +27,7 @@
 | `approvalChannelId` | string | `OC_CONFIG_GATE_CHANNEL` or local meta channel fallback | Discord channel ID where approval cards are posted. |
 | `pendingTtlMs` | number | `1800000` | Pending request expiry in milliseconds. Default: 30 minutes. |
 | `allowGatewayRestart` | boolean | `true` | Allows approved staged requests to call OpenClaw's official safe gateway restart command when `restart: true`. |
-| `authorizedDiscordUserIds` | string[] | `["1014431070059503699"]` | Discord users allowed to approve or deny requests. |
+| `authorizedDiscordUserIds` | string[] | `["1014431070059503699"]` | Discord users allowed to approve or deny requests. When non-empty, only these IDs are accepted; when empty, OpenClaw's channel sender authorization applies. |
 | `allowedAgentIds` | string[] | `["meta"]` | Agents allowed to bypass the direct-edit guard. Other agents must stage patches. |
 | `restartDelayMs` | number | `0` | Deprecated compatibility field. Restart scheduling is handled by OpenClaw's gateway command. |
 

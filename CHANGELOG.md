@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Security: Discord Approve/Deny now requires the sender to be in `authorizedDiscordUserIds` when that list is set. Previously any sender OpenClaw considered authorized for the channel could approve.
 - Fix approved `restart: true` requests always failing: OpenClaw rejects `--safe` combined with `--wait`, so the plugin now runs `openclaw gateway restart --safe --json`.
 
 ## 1.0.0 - 2026-05-09

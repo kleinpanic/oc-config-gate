@@ -11,7 +11,7 @@
 | Agent restarts gateway with raw systemd | Hook blocks raw systemd/pkill/openclaw restart commands for non-allowed agents. |
 | Stale approval applies over newer config | Apply rechecks the live config hash against staged base hash. |
 | Runtime config write resolves secrets into file | Stage/apply reads raw file config, not resolved runtime config. |
-| Unauthorized Discord user approves | Interactive handler checks OpenClaw auth and configured Discord user IDs. |
+| Unauthorized Discord user approves | Interactive handler requires the sender to be in `authorizedDiscordUserIds` (OpenClaw sender auth is used only when that list is empty). |
 | Approval card replay after expiry | Pending request TTL is enforced and expired requests are cleared. |
 
 ## Trust Boundaries
