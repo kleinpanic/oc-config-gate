@@ -1,8 +1,12 @@
 import type { OpenClawPluginApi } from "./types.js";
 
-const CONFIG_PATH_RE = /(?:^|\s|["'`])(?:~\/\.openclaw\/openclaw\.json|\/home\/broklein\/\.openclaw\/openclaw\.json|\.openclaw\/openclaw\.json|openclaw\.json)(?:\s|["'`]|$)/i;
-const CONFIG_WRITE_RE = /\b(?:cat|cp|mv|tee|sed|perl|python3?|node|jq|printf|ed|vi|vim|nano|truncate|install)\b[\s\S]*(?:>|--in-place|-i\b|rename|writeFile|writeFileSync|copyFile|copyFileSync|move)/i;
+// Matches openclaw.json under any directory prefix ($HOME, absolute, ~) but not
+// look-alikes such as openclaw.json.bak or my-openclaw.json.
+const CONFIG_PATH_RE = /(?<![\w.-])openclaw\.json(?![\w.-])/i;
+const CONFIG_WRITE_RE = /\b(?:cat|cp|mv|tee|sed|perl|python3?|node|jq|printf|echo|ed|vi|vim|nano|truncate|install)\b[\s\S]*(?:>|--in-place|-i\b|rename|writeFile|writeFileSync|copyFile|copyFileSync|move)/i;
 const GATEWAY_RESTART_RE = /\b(?:systemctl\s+--user\s+(?:restart|stop|kill|try-restart|reload-or-restart)\s+openclaw-gateway\.service|kill\s+-(?:USR1|TERM|KILL)|pkill\b[\s\S]*openclaw|openclaw\s+(?:gateway\s+)?(?:restart|stop|reload))\b/i;
+// OpenClaw file tools that write their target path without a shell command.
+const FILE_WRITE_TOOLS = new Set(["write", "edit", "apply_patch", "file_write", "multi_edit"]);
 const CONFIG_RPC_RE = /\b(?:config\.(?:apply|patch|set|unset)|update\.run|gateway\.(?:restart|reload|stop))\b/i;
 const DEFAULT_ALLOWED_AGENT_IDS = ["meta"];
 const CONFIG_GUIDANCE =
@@ -61,7 +65,10 @@ export function shouldBlockToolCall(params: {
     };
   }
 
-  if (CONFIG_PATH_RE.test(combined) && CONFIG_WRITE_RE.test(combined)) {
+  if (
+    CONFIG_PATH_RE.test(combined) &&
+    (FILE_WRITE_TOOLS.has(toolName.toLowerCase()) || CONFIG_WRITE_RE.test(combined))
+  ) {
     return {
       block: true,
       reason: `Direct edits to ~/.openclaw/openclaw.json are blocked for non-meta agents. ${CONFIG_GUIDANCE}`,

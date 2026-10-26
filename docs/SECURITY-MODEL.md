@@ -6,7 +6,7 @@
 
 | Threat | Mitigation |
 |--------|------------|
-| Non-meta agent edits `openclaw.json` directly | `before_tool_call` hook blocks common direct write patterns. |
+| Non-meta agent edits `openclaw.json` directly | `before_tool_call` hook blocks file-tool writes (`write`, `edit`, `apply_patch`) and common shell write patterns. |
 | Agent calls config/restart RPC directly | Hook blocks config/update/restart RPC method strings. |
 | Agent restarts gateway with raw systemd | Hook blocks raw systemd/pkill/openclaw restart commands for non-allowed agents. |
 | Stale approval applies over newer config | Apply rechecks the live config hash against staged base hash. |

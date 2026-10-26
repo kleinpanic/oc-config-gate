@@ -51,3 +51,37 @@ test("uses configured direct-change allowlist", () => {
   });
   assert.equal(result.block, false);
 });
+
+test("blocks non-meta config writes through absolute or $HOME paths", () => {
+  for (const cmd of [
+    "sed -i 's/a/b/' $HOME/.openclaw/openclaw.json",
+    "sed -i 's/a/b/' /root/.openclaw/openclaw.json",
+    "echo '{}' >~/.openclaw/openclaw.json",
+  ]) {
+    const result = shouldBlockToolCall({ agentId: "school", toolName: "exec", payload: { command: cmd } });
+    assert.equal(result.block, true, cmd);
+  }
+});
+
+test("blocks non-meta config writes through file edit tools", () => {
+  for (const [toolName, payload] of [
+    ["write", { path: "/home/user/.openclaw/openclaw.json", content: "{}" }],
+    ["edit", { path: "~/.openclaw/openclaw.json", oldText: "a", newText: "b" }],
+    ["apply_patch", { input: "*** Begin Patch\n*** Update File: /home/user/.openclaw/openclaw.json\n@@\n-a\n+b\n*** End Patch" }],
+  ]) {
+    const result = shouldBlockToolCall({ agentId: "school", toolName, payload });
+    assert.equal(result.block, true, toolName);
+  }
+});
+
+test("does not block reads or unrelated files", () => {
+  for (const [toolName, payload] of [
+    ["read", { path: "/home/user/.openclaw/openclaw.json" }],
+    ["exec", { command: "jq . ~/.openclaw/openclaw.json" }],
+    ["write", { path: "/home/user/project/package.json", content: "{}" }],
+    ["write", { path: "/home/user/notes/openclaw.json.md", content: "x" }],
+  ]) {
+    const result = shouldBlockToolCall({ agentId: "school", toolName, payload });
+    assert.equal(result.block, false, `${toolName} ${JSON.stringify(payload)}`);
+  }
+});
