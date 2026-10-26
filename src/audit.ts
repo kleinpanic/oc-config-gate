@@ -54,7 +54,7 @@ export async function requestSafeGatewayRestart(
   try {
     const { stdout, stderr } = await execFileAsync(
       "openclaw",
-      ["gateway", "restart", "--safe", "--wait", "5m", "--json"],
+      ["gateway", "restart", "--safe", "--json"],
       {
         timeout: 30_000,
         maxBuffer: 1024 * 1024,

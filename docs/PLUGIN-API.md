@@ -12,7 +12,7 @@ Stages a proposed config change for Discord approval.
 |------|------|----------|-------------|
 | `patch` | object | yes | JSON Merge Patch (RFC 7396). Only include fields to change. `null` deletes a key. |
 | `reason` | string | yes | Human-readable reason shown in the approval card and audit log. |
-| `restart` | boolean | no | If `true`, approved apply requests `openclaw gateway restart --safe --wait 5m --json` after write/bless. |
+| `restart` | boolean | no | If `true`, approved apply requests `openclaw gateway restart --safe --json` after write/bless. |
 
 ### Example
 

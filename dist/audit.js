@@ -46,7 +46,7 @@ export async function safetyCheckConfig(config) {
 }
 export async function requestSafeGatewayRestart(reason) {
     try {
-        const { stdout, stderr } = await execFileAsync("openclaw", ["gateway", "restart", "--safe", "--wait", "5m", "--json"], {
+        const { stdout, stderr } = await execFileAsync("openclaw", ["gateway", "restart", "--safe", "--json"], {
             timeout: 30_000,
             maxBuffer: 1024 * 1024,
             env: {

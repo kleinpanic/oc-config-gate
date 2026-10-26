@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix approved `restart: true` requests always failing: OpenClaw rejects `--safe` combined with `--wait`, so the plugin now runs `openclaw gateway restart --safe --json`.
+
 ## 1.0.0 - 2026-05-09
 
 - Consolidates the prior `oc-restart`, `oc-config-gate`, and shell-only config guardian flows into one OpenClaw plugin surface.

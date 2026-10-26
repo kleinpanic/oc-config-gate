@@ -325,7 +325,7 @@ export async function doApply(pending, api) {
                 "",
                 "Config was written and blessed, but the official safe gateway restart request failed.",
                 `Error: ${restart.error}`,
-                "Use `openclaw gateway restart --safe --wait 5m --json` from meta/operator context after checking gateway health.",
+                "Use `openclaw gateway restart --safe --json` from meta/operator context after checking gateway health.",
             ].join("\n"), true);
         }
     }

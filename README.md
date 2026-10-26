@@ -86,7 +86,7 @@ For a full write-up, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Operator 
 | Discord buttons | Approve applies; Deny discards. No token commands or slash fallback. |
 | `before_tool_call` hook | Blocks non-meta direct config edits, config RPCs, and raw restarts. |
 | Apply path | Rechecks base hash, validates, safety-checks, writes, blesses, audits. |
-| Safe restart | Optional `restart: true` calls `openclaw gateway restart --safe --wait 5m --json` after bless. |
+| Safe restart | Optional `restart: true` calls `openclaw gateway restart --safe --json` after bless. |
 
 ## Install
 

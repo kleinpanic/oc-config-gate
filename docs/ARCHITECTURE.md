@@ -33,7 +33,7 @@ flowchart TD
   Q --> R[Audit jsonl append]
   R --> S{restart true?}
   S -->|No| T[Update Discord card]
-  S -->|Yes| U[openclaw gateway restart --safe --wait 5m --json]
+  S -->|Yes| U[openclaw gateway restart --safe --json]
   U --> T
 ```
 
@@ -62,7 +62,7 @@ flowchart TD
 The plugin blocks raw gateway restarts for non-meta agents and does not call `systemctl` itself. If a staged request sets `restart: true`, the approved apply path calls:
 
 ```bash
-openclaw gateway restart --safe --wait 5m --json
+openclaw gateway restart --safe --json
 ```
 
 That keeps restart behavior aligned with OpenClaw's service abstraction and avoids bypassing gateway-aware drain behavior.
