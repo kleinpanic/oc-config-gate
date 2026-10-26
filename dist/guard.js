@@ -1,5 +1,10 @@
-const CONFIG_PATH_RE = /(?:^|\s|["'`])(?:~\/\.openclaw\/openclaw\.json|\/home\/broklein\/\.openclaw\/openclaw\.json|\.openclaw\/openclaw\.json|openclaw\.json)(?:\s|["'`]|$)/i;
-const CONFIG_WRITE_RE = /\b(?:cat|cp|mv|tee|sed|perl|python3?|node|jq|printf|ed|vi|vim|nano|truncate|install)\b[\s\S]*(?:>|--in-place|-i\b|rename|writeFile|writeFileSync|copyFile|copyFileSync|move)/i;
+// Any path whose final segment is openclaw.json: ~/..., $HOME/..., /abs/..., relative, or bare.
+const CONFIG_PATH_RE = /(?:^|[^\w.-])openclaw\.json(?![\w.-])/i;
+// Native file-mutation tools; any of them touching the config path is a direct edit.
+const FILE_EDIT_TOOLS = new Set(["write", "edit", "multi_edit", "apply_patch"]);
+// Commands that write by themselves (cp/mv/...), any shell redirect onto the config, or an
+// interpreter/editor paired with a write indicator.
+const CONFIG_WRITE_RE = /\b(?:cp|mv|tee|truncate|install|rsync|dd)\b|>\s*["']?[^\s"'|;&]*openclaw\.json|\b(?:cat|sed|perl|python3?|node|jq|printf|ed|vi|vim|nano)\b[\s\S]*(?:>|--in-place|-i\b|rename|writeFile|writeFileSync|copyFile|copyFileSync|move)/i;
 const GATEWAY_RESTART_RE = /\b(?:systemctl\s+--user\s+(?:restart|stop|kill|try-restart|reload-or-restart)\s+openclaw-gateway\.service|kill\s+-(?:USR1|TERM|KILL)|pkill\b[\s\S]*openclaw|openclaw\s+(?:gateway\s+)?(?:restart|stop|reload))\b/i;
 const CONFIG_RPC_RE = /\b(?:config\.(?:apply|patch|set|unset)|update\.run|gateway\.(?:restart|reload|stop))\b/i;
 const DEFAULT_ALLOWED_AGENT_IDS = ["meta"];
@@ -43,7 +48,8 @@ export function shouldBlockToolCall(params) {
             reason: `Direct OpenClaw config/update/restart RPCs are blocked for non-meta agents. ${CONFIG_GUIDANCE} ${RESTART_GUIDANCE}`,
         };
     }
-    if (CONFIG_PATH_RE.test(combined) && CONFIG_WRITE_RE.test(combined)) {
+    const isFileEditTool = FILE_EDIT_TOOLS.has(toolName.trim().toLowerCase());
+    if (CONFIG_PATH_RE.test(combined) && (isFileEditTool || CONFIG_WRITE_RE.test(combined))) {
         return {
             block: true,
             reason: `Direct edits to ~/.openclaw/openclaw.json are blocked for non-meta agents. ${CONFIG_GUIDANCE}`,

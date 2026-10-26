@@ -51,3 +51,42 @@ test("uses configured direct-change allowlist", () => {
   });
   assert.equal(result.block, false);
 });
+
+test("blocks non-meta native file tools that target the config file", () => {
+  for (const [toolName, payload] of [
+    ["write", { path: "/home/someone/.openclaw/openclaw.json", content: "{}" }],
+    ["edit", { file_path: "~/.openclaw/openclaw.json", old_string: "a", new_string: "b" }],
+    ["apply_patch", { input: "*** Begin Patch\n*** Update File: /root/.openclaw/openclaw.json\n*** End Patch" }],
+  ]) {
+    const result = shouldBlockToolCall({ agentId: "school", toolName, payload });
+    assert.equal(result.block, true, toolName);
+    assert.match(result.reason, /oc_config_stage/);
+  }
+});
+
+test("blocks non-meta shell writes to the config via $HOME or other absolute paths", () => {
+  for (const cmd of [
+    "cp /tmp/x $HOME/.openclaw/openclaw.json",
+    "cp /tmp/x /root/.openclaw/openclaw.json",
+    "echo '{}' >~/.openclaw/openclaw.json",
+    "jq . x > ~/.openclaw/openclaw.json;true",
+  ]) {
+    const result = shouldBlockToolCall({ agentId: "school", toolName: "exec", payload: { cmd } });
+    assert.equal(result.block, true, cmd);
+  }
+});
+
+test("still allows non-meta reads and writes of other files", () => {
+  assert.equal(
+    shouldBlockToolCall({ agentId: "school", toolName: "read", payload: { path: "~/.openclaw/openclaw.json" } }).block,
+    false,
+  );
+  assert.equal(
+    shouldBlockToolCall({ agentId: "school", toolName: "write", payload: { path: "/repo/openclaw.plugin.json", content: "{}" } }).block,
+    false,
+  );
+  assert.equal(
+    shouldBlockToolCall({ agentId: "school", toolName: "exec", payload: { cmd: "cat ~/.openclaw/openclaw.json | jq .agents" } }).block,
+    false,
+  );
+});
