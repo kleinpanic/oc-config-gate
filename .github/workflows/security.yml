@@ -38,5 +38,14 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm audit --audit-level=high
+
+      # The published package has no runtime dependencies; fail on any
+      # high advisory there.
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # The openclaw devDependency ships an npm-shrinkwrap.json, so advisories
+      # inside it can only be fixed upstream. Fail on critical; report the rest.
+      - name: Audit full tree
+        run: npm audit --audit-level=critical
 
