@@ -46,9 +46,14 @@ export default definePluginEntry({
       channel: "discord",
       namespace: "oc-config-gate",
       handler: async (ctx) => {
+        // A configured approver list is authoritative: generic OpenClaw sender
+        // auth must not let other users approve. Fall back to it only when no
+        // approvers are configured.
         const authorizedDiscordUserIds = new Set(pluginCfg.authorizedDiscordUserIds);
-        const authorizedByConfig = Boolean(ctx.senderId && authorizedDiscordUserIds.has(ctx.senderId));
-        if (!ctx.auth.isAuthorizedSender && !authorizedByConfig) {
+        const authorized = authorizedDiscordUserIds.size > 0
+          ? Boolean(ctx.senderId && authorizedDiscordUserIds.has(ctx.senderId))
+          : ctx.auth.isAuthorizedSender;
+        if (!authorized) {
           await ctx.respond.reply({
             text: "⛔ Not authorized.",
             ephemeral: true,
