@@ -68,6 +68,9 @@ test("blocks non-meta config writes through file edit tools", () => {
     ["write", { path: "/home/user/.openclaw/openclaw.json", content: "{}" }],
     ["edit", { path: "~/.openclaw/openclaw.json", oldText: "a", newText: "b" }],
     ["apply_patch", { input: "*** Begin Patch\n*** Update File: /home/user/.openclaw/openclaw.json\n@@\n-a\n+b\n*** End Patch" }],
+    ["apply_patch", { input: "*** Begin Patch\n*** Update File: /home/user/x.json\n*** Move to: /home/user/.openclaw/openclaw.json\n@@\n-a\n+b\n*** End Patch" }],
+    ["write", { file_path: "openclaw.json", content: "{}" }],
+    ["file_write", { target: "~/.openclaw/openclaw.json", content: "{}" }],
   ]) {
     const result = shouldBlockToolCall({ agentId: "school", toolName, payload });
     assert.equal(result.block, true, toolName);
@@ -80,6 +83,9 @@ test("does not block reads or unrelated files", () => {
     ["exec", { command: "jq . ~/.openclaw/openclaw.json" }],
     ["write", { path: "/home/user/project/package.json", content: "{}" }],
     ["write", { path: "/home/user/notes/openclaw.json.md", content: "x" }],
+    ["write", { path: "/home/user/project/README.md", content: "Edit ~/.openclaw/openclaw.json to configure." }],
+    ["edit", { path: "/home/user/project/README.md", oldText: "a", newText: "see openclaw.json" }],
+    ["apply_patch", { input: "*** Begin Patch\n*** Update File: /home/user/project/README.md\n@@\n-a\n+see ~/.openclaw/openclaw.json\n*** End Patch" }],
   ]) {
     const result = shouldBlockToolCall({ agentId: "school", toolName, payload });
     assert.equal(result.block, false, `${toolName} ${JSON.stringify(payload)}`);

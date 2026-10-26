@@ -5,6 +5,9 @@ const CONFIG_WRITE_RE = /\b(?:cat|cp|mv|tee|sed|perl|python3?|node|jq|printf|ech
 const GATEWAY_RESTART_RE = /\b(?:systemctl\s+--user\s+(?:restart|stop|kill|try-restart|reload-or-restart)\s+openclaw-gateway\.service|kill\s+-(?:USR1|TERM|KILL)|pkill\b[\s\S]*openclaw|openclaw\s+(?:gateway\s+)?(?:restart|stop|reload))\b/i;
 // OpenClaw file tools that write their target path without a shell command.
 const FILE_WRITE_TOOLS = new Set(["write", "edit", "apply_patch", "file_write", "multi_edit"]);
+const FILE_PATH_KEYS = ["path", "file_path", "filePath", "file"];
+// apply_patch file headers; OpenClaw trims each line before matching them.
+const PATCH_TARGET_RE = /^[ \t]*\*\*\* (?:Add File|Delete File|Update File|Move to): (.*)$/gm;
 const CONFIG_RPC_RE = /\b(?:config\.(?:apply|patch|set|unset)|update\.run|gateway\.(?:restart|reload|stop))\b/i;
 const DEFAULT_ALLOWED_AGENT_IDS = ["meta"];
 const CONFIG_GUIDANCE = "For config changes, stage an RFC 7396 patch with oc_config_stage; approving the Discord card automatically validates, writes, blesses, and audits.";
@@ -18,6 +21,39 @@ function stringifyParams(value) {
     catch {
         return String(value);
     }
+}
+/**
+ * Target paths of a file-write tool call. Returns null when none are found so
+ * the caller can fall back to scanning the whole payload.
+ */
+function fileToolTargets(payload) {
+    if (!payload || typeof payload !== "object")
+        return null;
+    const record = payload;
+    const targets = [];
+    for (const key of FILE_PATH_KEYS) {
+        const value = record[key];
+        if (typeof value === "string")
+            targets.push(value);
+    }
+    const input = record["input"];
+    if (typeof input === "string") {
+        for (const match of input.matchAll(PATCH_TARGET_RE))
+            targets.push(match[1] ?? "");
+    }
+    return targets.length > 0 ? targets : null;
+}
+function isConfigFileWrite(toolName, payload, combined) {
+    if (FILE_WRITE_TOOLS.has(toolName.toLowerCase())) {
+        // Match the target path, not the content, which may just mention openclaw.json.
+        const targets = fileToolTargets(payload);
+        const writesConfig = targets
+            ? targets.some((target) => CONFIG_PATH_RE.test(target.trim()))
+            : CONFIG_PATH_RE.test(combined);
+        if (writesConfig)
+            return true;
+    }
+    return CONFIG_PATH_RE.test(combined) && CONFIG_WRITE_RE.test(combined);
 }
 function normalizeAgentId(ctx) {
     const direct = ctx["agentId"];
@@ -47,8 +83,7 @@ export function shouldBlockToolCall(params) {
             reason: `Direct OpenClaw config/update/restart RPCs are blocked for non-meta agents. ${CONFIG_GUIDANCE} ${RESTART_GUIDANCE}`,
         };
     }
-    if (CONFIG_PATH_RE.test(combined) &&
-        (FILE_WRITE_TOOLS.has(toolName.toLowerCase()) || CONFIG_WRITE_RE.test(combined))) {
+    if (isConfigFileWrite(toolName, params.payload, combined)) {
         return {
             block: true,
             reason: `Direct edits to ~/.openclaw/openclaw.json are blocked for non-meta agents. ${CONFIG_GUIDANCE}`,
