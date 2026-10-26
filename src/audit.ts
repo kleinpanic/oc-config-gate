@@ -66,8 +66,11 @@ export async function requestSafeGatewayRestart(
       result = await run(["gateway", "restart", "--safe", "--wait", "5m", "--json"]);
     } catch (err) {
       // Newer OpenClaw releases reject --wait with --safe (safe restart uses
-      // gateway deferral instead); retry without it on those hosts.
-      if (!(err instanceof Error && /cannot be combined with --wait/.test(err.message))) throw err;
+      // gateway deferral instead); retry without it on those hosts. With
+      // --json the CLI reports that error on stdout, not in err.message.
+      const stdout = (err as { stdout?: unknown } | null)?.stdout;
+      const detail = `${err instanceof Error ? err.message : ""}\n${typeof stdout === "string" ? stdout : ""}`;
+      if (!/cannot be combined with --wait/.test(detail)) throw err;
       result = await run(["gateway", "restart", "--safe", "--json"]);
     }
     return { ok: true, output: `${result.stdout}${result.stderr}`.trim() };

@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { requestSafeGatewayRestart } from "../dist/audit.js";
 
 // Fake `openclaw` CLI that behaves like releases rejecting --safe with --wait.
+// Like OpenClaw 2026.10.x with --json, the error goes to stdout as JSON and
+// stderr only carries a generic failure line.
 function withFakeOpenclaw(fn) {
   return async () => {
     const dir = mkdtempSync(join(tmpdir(), "oc-config-gate-bin-"));
@@ -15,7 +17,7 @@ function withFakeOpenclaw(fn) {
       [
         "#!/bin/sh",
         `echo "$*" >> "${log}"`,
-        'case " $* " in *" --wait "*) echo "Error: --safe cannot be combined with --wait; safe restart uses gateway deferral" >&2; exit 1;; esac',
+        'case " $* " in *" --wait "*) echo \'{"ok":false,"error":{"type":"cli_error","message":"--safe cannot be combined with --wait; safe restart uses gateway deferral"}}\'; echo "[openclaw] The CLI command failed." >&2; exit 1;; esac',
         'echo \'{"ok":true}\'',
       ].join("\n"),
     );
