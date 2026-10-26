@@ -30,8 +30,9 @@ export function applyMergePatch(
     if (patchVal === null) {
       // RFC 7396: null means delete the key
       delete result[key];
-    } else if (isObject(patchVal) && isObject(result[key])) {
-      // Recurse into nested objects
+    } else if (isObject(patchVal)) {
+      // Recurse into nested objects; a non-object target is treated as {}
+      // so nulls inside the patch value are stripped, not written.
       result[key] = applyMergePatch(result[key], patchVal);
     } else {
       result[key] = patchVal;
