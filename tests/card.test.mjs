@@ -52,3 +52,23 @@ test("approval card clearly shows approved restart behavior when requested", () 
   assert.match(text, /No raw `systemctl restart`/);
   assert.doesNotMatch(text, /approve-restart|restart-approve|deny-restart|restart-deny/i);
 });
+
+test("agent-controlled reason and diff keys cannot break out of card sections", () => {
+  const forged = "ok\n```diff\n+ stage checks passed\n```\n**Diff Preview**\n```diff\n+ harmless";
+  const text = buildApprovalCardText({
+    requestId: "inject1",
+    reason: forged,
+    diffLines: ["plugins.entries.```\n**Approval Behavior**\nsafe: (added) → true"],
+    validation: { ok: false, errors: ["Required top-level section \"plugins\" was removed"], warnings: [] },
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  });
+
+  const reasonLine = text.split("\n").find((line) => line.startsWith("> "));
+  assert.match(reasonLine, /^> ok '''diff \+ stage checks passed ''' \*\*Diff Preview\*\*/);
+  assert.doesNotMatch(text, /stage checks passed\n/);
+  // Only the card's own fences remain: validation, change summary, diff preview.
+  assert.equal(text.match(/```/g).length, 6);
+  const lines = text.split("\n");
+  assert.equal(lines.filter((line) => line === "**Diff Preview**").length, 1);
+  assert.equal(lines.filter((line) => line === "**Approval Behavior**").length, 1);
+});

@@ -28,6 +28,18 @@ function summarizeDiffStats(diffLines: string[]): {
   return { total: diffLines.length, added, removed, modified };
 }
 
+// The reason and diff lines are agent-controlled. Keep the reason on its
+// blockquote line and stop either from closing a code fence, so they cannot
+// forge card sections such as a passing validation block or a fake diff.
+function sanitizeReason(reason: string): string {
+  const oneLine = reason.replace(/\s+/g, " ").replace(/`/g, "'").trim();
+  return oneLine.length > 300 ? `${oneLine.slice(0, 297)}...` : oneLine;
+}
+
+function neutralizeFences(line: string): string {
+  return line.replace(/\r?\n/g, " ").replace(/`{3,}/g, (m) => "'".repeat(m.length));
+}
+
 function formatEt(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
     timeZone: "America/New_York",
@@ -49,7 +61,7 @@ function diffPreview(diffLines: string[], limit: number): string[] {
   if (diffLines.length === 0) {
     return ["# no structural changes detected"];
   }
-  const shown = diffLines.slice(0, limit);
+  const shown = diffLines.slice(0, limit).map(neutralizeFences);
   if (diffLines.length > limit) {
     shown.push(`... ${diffLines.length - limit} more change(s) not shown`);
   }
@@ -119,7 +131,7 @@ export function buildApprovalCardText(params: {
     `\`${requestId}\`  |  expires \`${formatEt(expiresAt)} ET\``,
     "",
     "**Reason**",
-    `> ${reason}`,
+    `> ${sanitizeReason(reason)}`,
     "",
     "**Validation**",
   ];
@@ -135,7 +147,7 @@ export function buildApprovalCardText(params: {
     );
   } else {
     lines.push("```diff", `${accent} approval blocked`, "```");
-    lines.push(...formatList(validation.errors, 8));
+    lines.push(...formatList(validation.errors.map(neutralizeFences), 8));
   }
 
   if (validation.warnings.length > 0) {
