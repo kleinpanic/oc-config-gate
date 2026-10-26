@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/Tests-13%20passing-3fb950" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-24%20passing-3fb950" alt="Tests">
   <img src="https://img.shields.io/badge/Tools-2-58a6ff" alt="Tools">
   <img src="https://img.shields.io/badge/Hooks-1-d29922" alt="Hooks">
   <img src="https://img.shields.io/github/last-commit/kleinpanic/oc-config-gate" alt="Last commit">
@@ -34,7 +34,7 @@ It is the canonical replacement for the older split control plane where `oc-rest
 |---------|-------|
 | Runtime install | Linked through `openclaw plugins install --link` |
 | OpenClaw runtime inspect | `oc_config_stage`, `oc_config_apply`, `oc-config-gate-tool-guard` registered |
-| Tests | 13 passing locally and in GitHub Actions |
+| Tests | 24 passing locally and in GitHub Actions |
 | Docs site | `https://kleinpanic.github.io/oc-config-gate/` |
 | Old repo | `openclaw-oc-restart` is superseded but not archived/deleted |
 
@@ -220,7 +220,7 @@ npm test
 npm pack --dry-run
 ```
 
-The test suite covers native Discord component payloads, status-only apply behavior, stale-base rejection, non-meta config/restart guard behavior, OpenClaw plugin registration, staged restart card behavior, and config validator safety checks.
+The test suite covers native Discord component payloads, approval-card escaping, Discord approver scoping, status-only apply behavior, stale-base rejection, RFC 7396 merge semantics, non-meta config/restart guard behavior, the safe-restart command line, OpenClaw plugin registration, staged restart card behavior, and config validator safety checks.
 
 ## Documentation
 
