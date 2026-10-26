@@ -78,3 +78,12 @@ test("doApply refuses a staged patch containing __proto__", withTempEnv(async ()
   assert.match(result.content[0].text, /__proto__/);
   assert.equal(wrote, false);
 }));
+
+test("applyMergePatch drops nulls inside objects added over missing or scalar values (RFC 7396)", async () => {
+  const { applyMergePatch } = await import("../dist/merge.js");
+  assert.deepEqual(
+    applyMergePatch({ a: "x" }, { a: { b: null, c: 1 }, d: { e: null } }),
+    { a: { c: 1 }, d: {} },
+  );
+  assert.deepEqual(applyMergePatch({ a: { b: 1, c: 2 } }, { a: { b: null } }), { a: { c: 2 } });
+});
