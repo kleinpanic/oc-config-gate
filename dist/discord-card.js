@@ -112,7 +112,7 @@ export function buildApprovalCardText(params) {
         lines.push(...formatList(validation.errors.map(neutralizeFences), 8));
     }
     if (validation.warnings.length > 0) {
-        lines.push("", "**Warnings**", ...formatList(validation.warnings, 5));
+        lines.push("", "**Warnings**", ...formatList(validation.warnings.map(neutralizeFences), 5));
     }
     lines.push("", "**Change Summary**", "```text", `changed  ${String(stats.total).padStart(3)}`, `added    ${String(stats.added).padStart(3)}`, `modified ${String(stats.modified).padStart(3)}`, `removed  ${String(stats.removed).padStart(3)}`, "```", "", "**Diff Preview**", "```diff", ...diffPreview(diffLines, 18), "```", "**Approval Behavior**", validation.ok
         ? restart

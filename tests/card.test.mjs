@@ -72,3 +72,20 @@ test("agent-controlled reason and diff keys cannot break out of card sections", 
   assert.equal(lines.filter((line) => line === "**Diff Preview**").length, 1);
   assert.equal(lines.filter((line) => line === "**Approval Behavior**").length, 1);
 });
+
+test("agent-controlled text in warnings cannot break out of card sections", () => {
+  const text = buildApprovalCardText({
+    requestId: "inject2",
+    reason: "ok",
+    diffLines: [],
+    validation: {
+      ok: true,
+      errors: [],
+      warnings: ["agents.list[1] (id: x\n```\n**Diff Preview**\n```diff\n+ nothing) has no model or provider"],
+    },
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  });
+
+  assert.equal(text.match(/```/g).length, 6);
+  assert.equal(text.split("\n").filter((line) => line === "**Diff Preview**").length, 1);
+});

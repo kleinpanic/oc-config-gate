@@ -151,7 +151,7 @@ export function buildApprovalCardText(params: {
   }
 
   if (validation.warnings.length > 0) {
-    lines.push("", "**Warnings**", ...formatList(validation.warnings, 5));
+    lines.push("", "**Warnings**", ...formatList(validation.warnings.map(neutralizeFences), 5));
   }
 
   lines.push(
