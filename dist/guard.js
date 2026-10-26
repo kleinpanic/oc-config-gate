@@ -20,6 +20,28 @@ function stringifyParams(value) {
         return String(value);
     }
 }
+const PATCH_TARGET_RE = /^\s*\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/gm;
+// Target paths of a native file-tool call, so file contents that merely mention
+// openclaw.json are not treated as config edits. Null when no target is found,
+// in which case the caller falls back to scanning the whole payload.
+function fileEditTargets(payload) {
+    const targets = [];
+    if (payload && typeof payload === "object") {
+        const args = payload;
+        for (const key of ["path", "file_path", "filePath"]) {
+            if (typeof args[key] === "string")
+                targets.push(args[key]);
+        }
+    }
+    const patchText = typeof payload === "string"
+        ? payload
+        : payload && typeof payload === "object" && typeof payload["input"] === "string"
+            ? payload["input"]
+            : "";
+    for (const match of patchText.matchAll(PATCH_TARGET_RE))
+        targets.push(match[1].trim());
+    return targets.length > 0 ? targets : null;
+}
 function normalizeAgentId(ctx) {
     const direct = ctx["agentId"];
     if (typeof direct === "string" && direct.length > 0)
@@ -49,7 +71,11 @@ export function shouldBlockToolCall(params) {
         };
     }
     const isFileEditTool = FILE_EDIT_TOOLS.has(toolName.trim().toLowerCase());
-    if (CONFIG_PATH_RE.test(combined) && (isFileEditTool || CONFIG_WRITE_RE.test(combined))) {
+    const editTargets = isFileEditTool ? fileEditTargets(params.payload) : null;
+    const blocksConfigWrite = editTargets
+        ? editTargets.some((target) => CONFIG_PATH_RE.test(target))
+        : CONFIG_PATH_RE.test(combined) && (isFileEditTool || CONFIG_WRITE_RE.test(combined));
+    if (blocksConfigWrite) {
         return {
             block: true,
             reason: `Direct edits to ~/.openclaw/openclaw.json are blocked for non-meta agents. ${CONFIG_GUIDANCE}`,

@@ -90,3 +90,21 @@ test("still allows non-meta reads and writes of other files", () => {
     false,
   );
 });
+
+test("native file tools are judged by target path, not by file contents", () => {
+  for (const [toolName, payload] of [
+    ["write", { path: "/repo/README.md", content: "Edit ~/.openclaw/openclaw.json via oc_config_stage" }],
+    ["edit", { path: "/repo/docs/x.md", edits: [{ oldText: "a", newText: "see openclaw.json" }] }],
+    ["apply_patch", { input: "*** Begin Patch\n*** Update File: docs/x.md\n+mentions openclaw.json\n*** End Patch" }],
+  ]) {
+    assert.equal(shouldBlockToolCall({ agentId: "school", toolName, payload }).block, false, toolName);
+  }
+  assert.equal(
+    shouldBlockToolCall({
+      agentId: "school",
+      toolName: "apply_patch",
+      payload: { input: "*** Begin Patch\n*** Update File: notes.md\n*** Move to: ~/.openclaw/openclaw.json\n*** End Patch" },
+    }).block,
+    true,
+  );
+});
