@@ -10,6 +10,9 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { createConfigStageTool, createConfigApplyTool, doApply } from "./tools.js";
 import { readPending, clearPending, isPendingExpired } from "./pending.js";
 import { registerConfigGuardHook } from "./guard.js";
+// Request IDs whose approval is currently being applied. Guards against a
+// second click (or a deny) racing the multi-second safety-check/write/bless.
+const applyingRequestIds = new Set();
 export default definePluginEntry({
     id: "oc-config-gate",
     name: "Config Gate",
@@ -61,6 +64,13 @@ export default definePluginEntry({
                     });
                     return { handled: true };
                 }
+                if (applyingRequestIds.has(requestId)) {
+                    await ctx.respond.reply({
+                        text: `⏳ Request \`${requestId}\` is already being applied.`,
+                        ephemeral: true,
+                    });
+                    return { handled: true };
+                }
                 const pending = readPending();
                 if (!pending) {
                     await ctx.respond.editMessage({ text: "⚠️ No pending config request found (may have already been applied or expired)." });
@@ -89,12 +99,20 @@ export default definePluginEntry({
                 }
                 // ── Approve ─────────────────────────────────────────────────────────
                 if (action === "approve") {
-                    // Edit the card to show "applying..." immediately (Discord ACK)
-                    await ctx.respond.editMessage({
-                        text: `⏳ Applying config \`${requestId}\`: validating, safety-checking, writing, blessing, and auditing...`,
-                    });
-                    // Apply
-                    const result = await doApply(pending, gateApi);
+                    // Mark in-flight before the first await so a concurrent click sees it.
+                    applyingRequestIds.add(requestId);
+                    let result;
+                    try {
+                        // Edit the card to show "applying..." immediately (Discord ACK)
+                        await ctx.respond.editMessage({
+                            text: `⏳ Applying config \`${requestId}\`: validating, safety-checking, writing, blessing, and auditing...`,
+                        });
+                        // Apply
+                        result = await doApply(pending, gateApi);
+                    }
+                    finally {
+                        applyingRequestIds.delete(requestId);
+                    }
                     const resultText = result.content[0]?.text ?? "(no result)";
                     if (result.isError) {
                         await ctx.respond.editMessage({ text: `❌ Apply failed:\n${resultText}` });
