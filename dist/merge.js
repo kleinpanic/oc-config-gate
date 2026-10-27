@@ -6,6 +6,26 @@ function isObject(v) {
     return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 /**
+ * Return the path of the first "__proto__" key in a patch, or null.
+ * JSON.parse creates it as an own key, but assigning it during the merge
+ * swaps the result's prototype instead of setting a field: the change is
+ * dropped from the written config yet still satisfies `in` checks, so the
+ * diff and validation would not reflect what actually gets written.
+ */
+export function findUnsafePatchKey(patch, prefix = "") {
+    if (!isObject(patch))
+        return null;
+    for (const key of Object.keys(patch)) {
+        const p = prefix ? `${prefix}.${key}` : key;
+        if (key === "__proto__")
+            return p;
+        const nested = findUnsafePatchKey(patch[key], p);
+        if (nested)
+            return nested;
+    }
+    return null;
+}
+/**
  * Apply a JSON Merge Patch to a target object.
  * Returns a new deep-merged object (does not mutate inputs).
  * Null values in the patch delete the corresponding key.
@@ -22,8 +42,9 @@ export function applyMergePatch(target, patch) {
             // RFC 7396: null means delete the key
             delete result[key];
         }
-        else if (isObject(patchVal) && isObject(result[key])) {
-            // Recurse into nested objects
+        else if (isObject(patchVal)) {
+            // Recurse into nested objects; a non-object target is replaced by {}
+            // first, so nulls inside a newly added object are dropped (RFC 7396).
             result[key] = applyMergePatch(result[key], patchVal);
         }
         else {

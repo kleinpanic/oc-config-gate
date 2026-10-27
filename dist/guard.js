@@ -1,5 +1,10 @@
-const CONFIG_PATH_RE = /(?:^|\s|["'`])(?:~\/\.openclaw\/openclaw\.json|\/home\/broklein\/\.openclaw\/openclaw\.json|\.openclaw\/openclaw\.json|openclaw\.json)(?:\s|["'`]|$)/i;
-const CONFIG_WRITE_RE = /\b(?:cat|cp|mv|tee|sed|perl|python3?|node|jq|printf|ed|vi|vim|nano|truncate|install)\b[\s\S]*(?:>|--in-place|-i\b|rename|writeFile|writeFileSync|copyFile|copyFileSync|move)/i;
+// Any path whose final segment is openclaw.json: ~/..., $HOME/..., /abs/..., relative, or bare.
+const CONFIG_PATH_RE = /(?:^|[^\w.-])openclaw\.json(?![\w.-])/i;
+// Native file-mutation tools; any of them touching the config path is a direct edit.
+const FILE_EDIT_TOOLS = new Set(["write", "edit", "multi_edit", "apply_patch"]);
+// Commands that write by themselves (cp/mv/...), any shell redirect onto the config, or an
+// interpreter/editor paired with a write indicator.
+const CONFIG_WRITE_RE = /\b(?:cp|mv|tee|truncate|install|rsync|dd)\b|>\s*["']?[^\s"'|;&]*openclaw\.json|\b(?:cat|sed|perl|python3?|node|jq|printf|ed|vi|vim|nano)\b[\s\S]*(?:>|--in-place|-i\b|rename|writeFile|writeFileSync|copyFile|copyFileSync|move)/i;
 const GATEWAY_RESTART_RE = /\b(?:systemctl\s+--user\s+(?:restart|stop|kill|try-restart|reload-or-restart)\s+openclaw-gateway\.service|kill\s+-(?:USR1|TERM|KILL)|pkill\b[\s\S]*openclaw|openclaw\s+(?:gateway\s+)?(?:restart|stop|reload))\b/i;
 const CONFIG_RPC_RE = /\b(?:config\.(?:apply|patch|set|unset)|update\.run|gateway\.(?:restart|reload|stop))\b/i;
 const DEFAULT_ALLOWED_AGENT_IDS = ["meta"];
@@ -14,6 +19,28 @@ function stringifyParams(value) {
     catch {
         return String(value);
     }
+}
+const PATCH_TARGET_RE = /^\s*\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/gm;
+// Target paths of a native file-tool call, so file contents that merely mention
+// openclaw.json are not treated as config edits. Null when no target is found,
+// in which case the caller falls back to scanning the whole payload.
+function fileEditTargets(payload) {
+    const targets = [];
+    if (payload && typeof payload === "object") {
+        const args = payload;
+        for (const key of ["path", "file_path", "filePath"]) {
+            if (typeof args[key] === "string")
+                targets.push(args[key]);
+        }
+    }
+    const patchText = typeof payload === "string"
+        ? payload
+        : payload && typeof payload === "object" && typeof payload["input"] === "string"
+            ? payload["input"]
+            : "";
+    for (const match of patchText.matchAll(PATCH_TARGET_RE))
+        targets.push(match[1].trim());
+    return targets.length > 0 ? targets : null;
 }
 function normalizeAgentId(ctx) {
     const direct = ctx["agentId"];
@@ -43,7 +70,12 @@ export function shouldBlockToolCall(params) {
             reason: `Direct OpenClaw config/update/restart RPCs are blocked for non-meta agents. ${CONFIG_GUIDANCE} ${RESTART_GUIDANCE}`,
         };
     }
-    if (CONFIG_PATH_RE.test(combined) && CONFIG_WRITE_RE.test(combined)) {
+    const isFileEditTool = FILE_EDIT_TOOLS.has(toolName.trim().toLowerCase());
+    const editTargets = isFileEditTool ? fileEditTargets(params.payload) : null;
+    const blocksConfigWrite = editTargets
+        ? editTargets.some((target) => CONFIG_PATH_RE.test(target))
+        : CONFIG_PATH_RE.test(combined) && (isFileEditTool || CONFIG_WRITE_RE.test(combined));
+    if (blocksConfigWrite) {
         return {
             block: true,
             reason: `Direct edits to ~/.openclaw/openclaw.json are blocked for non-meta agents. ${CONFIG_GUIDANCE}`,
