@@ -26,7 +26,9 @@
     "LICENSE"
   ],
   "openclaw": {
-    "extensions": ["dist/plugin.js"]
+    "extensions": [
+      "dist/plugin.js"
+    ]
   },
   "exports": {
     ".": "./dist/plugin.js",
@@ -49,6 +51,8 @@
   "overrides": {
     "undici": "8.12.3",
     "zod": "4.6.7",
-    "npm": "12.2.1"
+    "npm": "12.2.1",
+    "tar": "7.5.22",
+    "proxy-addr": "2.0.8"
   }
 }
