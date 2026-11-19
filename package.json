@@ -42,8 +42,8 @@
     "openclaw": ">=2026.5.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "openclaw": "^2026.10.7",
+    "@types/node": "^26.6.6",
+    "openclaw": "^2026.10.9",
     "typescript": "^7.0.2"
   },
   "overrides": {
