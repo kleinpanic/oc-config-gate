@@ -13,6 +13,10 @@ import { createConfigStageTool, createConfigApplyTool, doApply } from "./tools.j
 import { readPending, clearPending, isPendingExpired } from "./pending.js";
 import { registerConfigGuardHook } from "./guard.js";
 
+// Request IDs whose approval is currently being applied. Guards against a
+// second click (or a deny) racing the multi-second safety-check/write/bless.
+const applyingRequestIds = new Set<string>();
+
 export default definePluginEntry({
   id: "oc-config-gate",
   name: "Config Gate",
@@ -46,9 +50,14 @@ export default definePluginEntry({
       channel: "discord",
       namespace: "oc-config-gate",
       handler: async (ctx) => {
+        // A configured approver list is authoritative: generic OpenClaw sender
+        // auth must not let other users approve. Fall back to it only when no
+        // approvers are configured.
         const authorizedDiscordUserIds = new Set(pluginCfg.authorizedDiscordUserIds);
-        const authorizedByConfig = Boolean(ctx.senderId && authorizedDiscordUserIds.has(ctx.senderId));
-        if (!ctx.auth.isAuthorizedSender && !authorizedByConfig) {
+        const authorized = authorizedDiscordUserIds.size > 0
+          ? Boolean(ctx.senderId && authorizedDiscordUserIds.has(ctx.senderId))
+          : ctx.auth.isAuthorizedSender;
+        if (!authorized) {
           await ctx.respond.reply({
             text: "⛔ Not authorized.",
             ephemeral: true,
@@ -62,6 +71,14 @@ export default definePluginEntry({
         if (!requestId) {
           await ctx.respond.reply({
             text: "⚠️ Malformed interaction payload — missing requestId.",
+            ephemeral: true,
+          });
+          return { handled: true };
+        }
+
+        if (applyingRequestIds.has(requestId)) {
+          await ctx.respond.reply({
+            text: `⏳ Request \`${requestId}\` is already being applied.`,
             ephemeral: true,
           });
           return { handled: true };
@@ -100,13 +117,20 @@ export default definePluginEntry({
 
         // ── Approve ─────────────────────────────────────────────────────────
         if (action === "approve") {
-          // Edit the card to show "applying..." immediately (Discord ACK)
-          await ctx.respond.editMessage({
-            text: `⏳ Applying config \`${requestId}\`: validating, safety-checking, writing, blessing, and auditing...`,
-          });
+          // Mark in-flight before the first await so a concurrent click sees it.
+          applyingRequestIds.add(requestId);
+          let result: Awaited<ReturnType<typeof doApply>>;
+          try {
+            // Edit the card to show "applying..." immediately (Discord ACK)
+            await ctx.respond.editMessage({
+              text: `⏳ Applying config \`${requestId}\`: validating, safety-checking, writing, blessing, and auditing...`,
+            });
 
-          // Apply
-          const result = await doApply(pending, gateApi);
+            // Apply
+            result = await doApply(pending, gateApi);
+          } finally {
+            applyingRequestIds.delete(requestId);
+          }
           const resultText = result.content[0]?.text ?? "(no result)";
 
           if (result.isError) {

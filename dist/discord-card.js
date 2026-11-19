@@ -20,6 +20,16 @@ function summarizeDiffStats(diffLines) {
     }
     return { total: diffLines.length, added, removed, modified };
 }
+// The reason and diff lines are agent-controlled. Keep the reason on its
+// blockquote line and stop either from closing a code fence, so they cannot
+// forge card sections such as a passing validation block or a fake diff.
+function sanitizeReason(reason) {
+    const oneLine = reason.replace(/\s+/g, " ").replace(/`/g, "'").trim();
+    return oneLine.length > 300 ? `${oneLine.slice(0, 297)}...` : oneLine;
+}
+function neutralizeFences(line) {
+    return line.replace(/\r?\n/g, " ").replace(/`{3,}/g, (m) => "'".repeat(m.length));
+}
 function formatEt(iso) {
     return new Date(iso).toLocaleString("en-US", {
         timeZone: "America/New_York",
@@ -39,7 +49,7 @@ function diffPreview(diffLines, limit) {
     if (diffLines.length === 0) {
         return ["# no structural changes detected"];
     }
-    const shown = diffLines.slice(0, limit);
+    const shown = diffLines.slice(0, limit).map(neutralizeFences);
     if (diffLines.length > limit) {
         shown.push(`... ${diffLines.length - limit} more change(s) not shown`);
     }
@@ -90,7 +100,7 @@ export function buildApprovalCardText(params) {
         `\`${requestId}\`  |  expires \`${formatEt(expiresAt)} ET\``,
         "",
         "**Reason**",
-        `> ${reason}`,
+        `> ${sanitizeReason(reason)}`,
         "",
         "**Validation**",
     ];
@@ -99,10 +109,10 @@ export function buildApprovalCardText(params) {
     }
     else {
         lines.push("```diff", `${accent} approval blocked`, "```");
-        lines.push(...formatList(validation.errors, 8));
+        lines.push(...formatList(validation.errors.map(neutralizeFences), 8));
     }
     if (validation.warnings.length > 0) {
-        lines.push("", "**Warnings**", ...formatList(validation.warnings, 5));
+        lines.push("", "**Warnings**", ...formatList(validation.warnings.map(neutralizeFences), 5));
     }
     lines.push("", "**Change Summary**", "```text", `changed  ${String(stats.total).padStart(3)}`, `added    ${String(stats.added).padStart(3)}`, `modified ${String(stats.modified).padStart(3)}`, `removed  ${String(stats.removed).padStart(3)}`, "```", "", "**Diff Preview**", "```diff", ...diffPreview(diffLines, 18), "```", "**Approval Behavior**", validation.ok
         ? restart

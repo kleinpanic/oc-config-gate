@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { OpenClawPluginApi, PluginTool, PluginToolResult } from "./types.js";
-import { applyMergePatch, summarizePatchPaths } from "./merge.js";
+import { applyMergePatch, findUnsafePatchKey, summarizePatchPaths } from "./merge.js";
 import { validateMergedConfig } from "./validate.js";
 import { buildApprovalCardComponents, buildApprovalCardText } from "./discord-card.js";
 import { appendAudit, blessConfig, requestSafeGatewayRestart, safetyCheckConfig } from "./audit.js";
@@ -85,6 +85,10 @@ export function createConfigStageTool(api: OpenClawPluginApi, pluginCfg: {
       }
       if (typeof patch !== "object" || patch === null || Array.isArray(patch)) {
         return text("patch must be a JSON object (RFC 7396 Merge Patch)", true);
+      }
+      const unsafeKey = findUnsafePatchKey(patch);
+      if (unsafeKey) {
+        return text(`patch contains a forbidden "__proto__" key at "${unsafeKey}"`, true);
       }
       if (restart && pluginCfg.allowGatewayRestart === false) {
         return text("restart=true is disabled by oc-config-gate.allowGatewayRestart", true);
@@ -322,6 +326,11 @@ export async function doApply(
       ].join("\n"),
       true,
     );
+  }
+
+  const unsafeKey = findUnsafePatchKey(pending.patch);
+  if (unsafeKey) {
+    return text(`❌ Staged patch contains a forbidden "__proto__" key at "${unsafeKey}" — config not written.`, true);
   }
 
   const mergedConfig = applyMergePatch(liveConfigRaw, pending.patch);

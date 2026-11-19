@@ -37,6 +37,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
-      - run: npm audit --audit-level=high
+      - run: npm ci --ignore-scripts
+      # Shipped tree: the plugin has no runtime dependencies, keep it clean.
+      - run: npm audit --omit=dev --audit-level=high
+      # Dev tree: openclaw (types/tests only) depends on npm, whose bundled
+      # dependencies cannot be overridden; fail on critical advisories there.
+      - run: npm audit --audit-level=critical
 
