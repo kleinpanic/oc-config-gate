@@ -26,7 +26,9 @@
     "LICENSE"
   ],
   "openclaw": {
-    "extensions": ["dist/plugin.js"]
+    "extensions": [
+      "dist/plugin.js"
+    ]
   },
   "exports": {
     ".": "./dist/plugin.js",
@@ -45,5 +47,9 @@
     "@types/node": "^22.12.0",
     "openclaw": "^2026.5.7",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "tar": "7.5.22",
+    "proxy-addr": "2.0.8"
   }
 }
